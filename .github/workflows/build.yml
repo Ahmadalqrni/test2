@@ -14,8 +14,24 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        submodules: recursive
-        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Initialize and update submodules
+      run: |
+        git submodule sync
+        git submodule update --init --recursive
+      continue-on-error: true
+    
+    - name: Check if submodule exists
+      id: check_submodule
+      run: |
+        if [ -d "absher-neuron-web" ] && [ "$(ls -A absher-neuron-web)" ]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "Submodule found and has content"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "Submodule directory is empty or missing"
+        fi
     
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -25,10 +41,12 @@ jobs:
         cache-dependency-path: absher-neuron-web/package-lock.json
     
     - name: Install dependencies
+      if: steps.check_submodule.outputs.exists == 'true'
       working-directory: ./absher-neuron-web
       run: npm ci
     
     - name: Build Next.js app
+      if: steps.check_submodule.outputs.exists == 'true'
       working-directory: ./absher-neuron-web
       run: npm run build
     
