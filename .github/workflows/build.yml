@@ -1,0 +1,41 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: absher-neuron-web/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./absher-neuron-web
+      run: npm ci
+    
+    - name: Build Next.js app
+      working-directory: ./absher-neuron-web
+      run: npm run build
+    
+    - name: Build output
+      if: success()
+      working-directory: ./absher-neuron-web
+      run: |
+        echo "Build completed successfully!"
+        ls -la .next || echo "No .next directory found"
+
