@@ -15,22 +15,25 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        submodules: recursive
+        token: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Initialize and update submodules
+    - name: Verify submodule checkout
       run: |
-        git submodule sync
-        git submodule update --init --recursive
-      continue-on-error: true
-    
-    - name: Check if submodule exists
-      id: check_submodule
-      run: |
-        if [ -d "absher-neuron-web" ] && [ "$(ls -A absher-neuron-web)" ]; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "Submodule found and has content"
+        echo "Checking submodule status..."
+        git submodule status
+        if [ -d "absher-neuron-web" ]; then
+          echo "Submodule directory exists"
+          ls -la absher-neuron-web/ | head -10
+          if [ -f "absher-neuron-web/package.json" ]; then
+            echo "✅ Submodule content found - package.json exists"
+          else
+            echo "❌ Submodule directory is empty"
+            exit 1
+          fi
         else
-          echo "exists=false" >> $GITHUB_OUTPUT
-          echo "Submodule directory is empty or missing"
+          echo "❌ Submodule directory not found"
+          exit 1
         fi
     
     - name: Setup Node.js
@@ -41,19 +44,22 @@ jobs:
         cache-dependency-path: absher-neuron-web/package-lock.json
     
     - name: Install dependencies
-      if: steps.check_submodule.outputs.exists == 'true'
       working-directory: ./absher-neuron-web
       run: npm ci
     
     - name: Build Next.js app
-      if: steps.check_submodule.outputs.exists == 'true'
       working-directory: ./absher-neuron-web
       run: npm run build
     
-    - name: Build output
-      if: success()
+    - name: Verify build output
       working-directory: ./absher-neuron-web
       run: |
-        echo "Build completed successfully!"
-        ls -la .next || echo "No .next directory found"
+        echo "✅ Build completed successfully!"
+        if [ -d ".next" ]; then
+          echo "✅ .next directory created"
+          ls -la .next/ | head -5
+        else
+          echo "❌ .next directory not found"
+          exit 1
+        fi
 
